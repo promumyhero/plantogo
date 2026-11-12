@@ -401,6 +401,12 @@ export interface CreateTripInput {
   }>;
 }
 
+export interface ItineraryFinanceLink {
+  paidByMemberId: string;
+  splitType: 'all' | 'single' | 'custom';
+  customMemberIds?: string[];
+}
+
 interface TripStoreContextValue {
   bundles: CompleteTripBundle[];
   isLoaded: boolean;
@@ -410,7 +416,8 @@ interface TripStoreContextValue {
   addOrUpdateItineraryItem: (
     tripId: string,
     actorEmail: string,
-    item: Omit<ItineraryItem, 'id' | 'trip_id' | 'created_at' | 'created_by'> & { id?: string }
+    item: Omit<ItineraryItem, 'id' | 'trip_id' | 'created_at' | 'created_by'> & { id?: string },
+    financeLink?: ItineraryFinanceLink
   ) => boolean;
   deleteItineraryItem: (tripId: string, actorEmail: string, itemId: string) => boolean;
   bulkDeleteItineraryItems: (
@@ -656,6 +663,7 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
           owner_id: ownerMemberId,
           title: cleanTitle,
           region: 'Jawa Tengah',
+          origin_city: input.answers.budgetInclusion?.originCity || 'Pontianak',
           start_date: input.startDate,
           end_date: input.endDate,
           total_budget_plan: Math.max(0, Math.floor(input.totalBudgetPlan)),
@@ -695,7 +703,8 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
       actorEmail: string,
       itemInput: Omit<ItineraryItem, 'id' | 'trip_id' | 'created_at' | 'created_by'> & {
         id?: string;
-      }
+      },
+      financeLink?: ItineraryFinanceLink
     ): boolean => {
       const bundle = bundles.find((b) => b.trip.id === tripId);
       if (!bundle) return false;
@@ -714,35 +723,127 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
+      const cost = Math.max(0, Math.floor(itemInput.estimated_cost || 0));
+      let targetItemId = itemInput.id;
       let nextItinerary: ItineraryItem[];
+
       if (existingItem) {
+        targetItemId = existingItem.id;
         nextItinerary = bundle.itinerary.map((i) =>
           i.id === existingItem.id
             ? {
                 ...existingItem,
                 ...itemInput,
                 id: existingItem.id,
-                estimated_cost: Math.max(0, Math.floor(itemInput.estimated_cost)),
+                estimated_cost: cost,
               }
             : i
         );
-        toast.success('Baris Tabel Diperbarui');
       } else {
+        targetItemId = `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const created: ItineraryItem = {
           ...itemInput,
-          id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: targetItemId,
           trip_id: tripId,
-          estimated_cost: Math.max(0, Math.floor(itemInput.estimated_cost)),
+          estimated_cost: cost,
           created_by: actor?.id || 'system',
           created_at: new Date().toISOString(),
         };
         nextItinerary = [...bundle.itinerary, created];
-        toast.success('Baris Baru Masuk ke Tabel Jadwal');
+      }
+
+      // Auto-sync with Finance Table & Split-Bill
+      let nextExpenses = bundle.expenses;
+      const existingLinkedExpense = bundle.expenses.find(
+        (e) => e.itinerary_item_id === targetItemId
+      );
+
+      if (cost <= 0) {
+        // If cost was reset to 0 (free), remove any previous linked expense
+        if (existingLinkedExpense) {
+          nextExpenses = bundle.expenses.filter((e) => e.itinerary_item_id !== targetItemId);
+        }
+      } else if (financeLink) {
+        const payerId = financeLink.paidByMemberId || actor?.id || bundle.members[0]?.id;
+        let participants: SplitParticipantInput[];
+
+        if (financeLink.splitType === 'single') {
+          participants = [{ member_id: payerId }];
+        } else if (financeLink.splitType === 'custom' && financeLink.customMemberIds?.length) {
+          participants = financeLink.customMemberIds.map((id) => ({ member_id: id }));
+        } else {
+          participants = bundle.members.map((m) => ({ member_id: m.id }));
+        }
+
+        const category: ExpenseCategory =
+          itemInput.item_type === 'meal'
+            ? 'food'
+            : itemInput.item_type === 'stay'
+            ? 'lodging'
+            : itemInput.item_type === 'transit'
+            ? 'transport'
+            : 'tickets';
+
+        const expenseId = existingLinkedExpense ? existingLinkedExpense.id : `exp-itin-${Date.now()}`;
+        const splits = calculateExpenseSplits(expenseId, cost, 'equal', participants);
+
+        if (existingLinkedExpense) {
+          nextExpenses = bundle.expenses.map((e) =>
+            e.id === existingLinkedExpense.id
+              ? {
+                  ...e,
+                  title: itemInput.title,
+                  amount: cost,
+                  category,
+                  paid_by_member_id: payerId,
+                  split_type: 'equal' as const,
+                  splits,
+                  day_number: itemInput.day_number,
+                  updated_at: new Date().toISOString(),
+                }
+              : e
+          );
+        } else {
+          const newExp: Expense = {
+            id: expenseId,
+            trip_id: tripId,
+            itinerary_item_id: targetItemId,
+            title: itemInput.title,
+            category,
+            amount: cost,
+            paid_by_member_id: payerId,
+            split_type: 'equal',
+            splits,
+            incurred_at: bundle.trip.start_date,
+            day_number: itemInput.day_number,
+            created_by_member_id: actor?.id || payerId,
+            updated_at: new Date().toISOString(),
+          };
+          nextExpenses = [...bundle.expenses, newExp];
+        }
       }
 
       persist(
-        bundles.map((b) => (b.trip.id === tripId ? { ...b, itinerary: nextItinerary } : b))
+        bundles.map((b) =>
+          b.trip.id === tripId ? { ...b, itinerary: nextItinerary, expenses: nextExpenses } : b
+        )
       );
+
+      if (existingItem) {
+        toast.success('Rencana & Keuangan Diperbarui', {
+          description:
+            cost > 0
+              ? 'Tersinkronisasi otomatis ke Tabel Keuangan & Split-Bill.'
+              : 'Disimpan tanpa biaya (Gratis).',
+        });
+      } else {
+        toast.success('Baris Baru Masuk ke Tabel Jadwal', {
+          description:
+            cost > 0
+              ? 'Tersinkronisasi otomatis ke Tabel Keuangan & Split-Bill.'
+              : 'Disimpan tanpa biaya (Gratis).',
+        });
+      }
       return true;
     },
     [bundles, getActiveMemberForTrip, persist]
@@ -764,8 +865,11 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       const nextItinerary = bundle.itinerary.filter((i) => i.id !== itemId);
+      const nextExpenses = bundle.expenses.filter((e) => e.itinerary_item_id !== itemId);
       persist(
-        bundles.map((b) => (b.trip.id === tripId ? { ...b, itinerary: nextItinerary } : b))
+        bundles.map((b) =>
+          b.trip.id === tripId ? { ...b, itinerary: nextItinerary, expenses: nextExpenses } : b
+        )
       );
       toast.success('Baris Dihapus dari Tabel');
       return true;
@@ -808,8 +912,13 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
 
       if (deletedCount > 0) {
         const nextItinerary = bundle.itinerary.filter((i) => !idsToDelete.has(i.id));
+        const nextExpenses = bundle.expenses.filter(
+          (e) => !e.itinerary_item_id || !idsToDelete.has(e.itinerary_item_id)
+        );
         persist(
-          bundles.map((b) => (b.trip.id === tripId ? { ...b, itinerary: nextItinerary } : b))
+          bundles.map((b) =>
+            b.trip.id === tripId ? { ...b, itinerary: nextItinerary, expenses: nextExpenses } : b
+          )
         );
         toast.success(`${deletedCount} rencana berhasil dihapus sekaligus!`);
       }
@@ -837,11 +946,21 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
       }
 
       const isOwner = actor.role === 'owner';
-      const remaining = isOwner ? [] : bundle.itinerary.filter((i) => i.is_locked);
-      const deletedCount = bundle.itinerary.length - remaining.length;
+      const remainingItin = isOwner ? [] : bundle.itinerary.filter((i) => i.is_locked);
+      const remainingIds = new Set(remainingItin.map((i) => i.id));
+      const remainingExpenses = isOwner
+        ? bundle.expenses.filter((e) => !e.itinerary_item_id)
+        : bundle.expenses.filter(
+            (e) => !e.itinerary_item_id || remainingIds.has(e.itinerary_item_id)
+          );
+      const deletedCount = bundle.itinerary.length - remainingItin.length;
 
       persist(
-        bundles.map((b) => (b.trip.id === tripId ? { ...b, itinerary: remaining } : b))
+        bundles.map((b) =>
+          b.trip.id === tripId
+            ? { ...b, itinerary: remainingItin, expenses: remainingExpenses }
+            : b
+        )
       );
 
       toast.success(

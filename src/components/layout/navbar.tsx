@@ -78,10 +78,10 @@ export function TopNavbar() {
               {currentUser.full_name.charAt(0).toUpperCase()}
             </span>
             <div className="hidden sm:flex flex-col leading-tight text-left">
-              <span className="font-semibold text-[#2A2421] truncate max-w-[130px]">
+              <span className="font-semibold text-[#2A2421] truncate max-w-32.5">
                 {currentUser.full_name}
               </span>
-              <span className="text-[10px] text-[#7D736B] truncate max-w-[130px]">
+              <span className="text-[10px] text-[#7D736B] truncate max-w-32.5">
                 {currentUser.email}
               </span>
             </div>

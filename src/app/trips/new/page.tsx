@@ -29,6 +29,8 @@ import {
   Check,
   Compass,
   Mail,
+  Plane,
+  Ship,
   Sparkles,
   Users,
   Wallet,
@@ -47,12 +49,38 @@ const ROLE_SELECT_OPTIONS = [
   { value: 'viewer', label: 'Hanya Lihat (Can View)' },
 ];
 
+const ORIGIN_CITY_OPTIONS = [
+  { value: 'Pontianak', label: 'Pontianak (Kalimantan Barat)' },
+  { value: 'Banjarmasin', label: 'Banjarmasin (Kalimantan Selatan)' },
+  { value: 'Balikpapan', label: 'Balikpapan (Kalimantan Timur)' },
+  { value: 'Jakarta', label: 'Jakarta / Jabodetabek' },
+  { value: 'Surabaya', label: 'Surabaya (Jawa Timur)' },
+  { value: 'Bandung', label: 'Bandung (Jawa Barat)' },
+  { value: 'Medan', label: 'Medan (Sumatera Utara)' },
+  { value: 'Lainnya', label: 'Kota Asal Lainnya (Kustom)' },
+];
+
 const VEHICLE_OPTIONS: Array<{
   id: PrimaryTransport;
   title: string;
   desc: string;
   defaultNote: string;
+  badge?: string;
 }> = [
+  {
+    id: 'kapal_laut',
+    title: 'Kapal Laut / Ro-Ro (DLU & Pelni)',
+    desc: 'Lintas pulau Pontianak/Banjarmasin ➔ Semarang (Kamar AC, Resto, Bioskop)',
+    defaultNote: 'Kapal DLU KM Dharma Ferry II PP (Pontianak - Tanjung Emas Semarang)',
+    badge: 'Pilihan Populer Lintas Pulau',
+  },
+  {
+    id: 'pesawat',
+    title: 'Pesawat Terbang (Penerbangan Komersial)',
+    desc: 'Bandara Supadio (PNK) / CGK / SUB ➔ Ahmad Yani (SRG) / YIA PP',
+    defaultNote: 'Pesawat PP Lion Air / Super Air Jet / Garuda (Bagasi 20kg)',
+    badge: 'Cepat & Praktis',
+  },
   {
     id: 'mobil_pribadi',
     title: 'Mobil Pribadi (Via Tol Trans-Jawa)',
@@ -92,29 +120,37 @@ export default function NewTripOnboardingPage() {
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Where & When
+  // Step 1: Where & When (Origin & Destination)
   const [title, setTitle] = useState('Ekspedisi Jawa Tengah & Highland');
+  const [originCity, setOriginCity] = useState<string>('Pontianak');
+  const [customOriginCity, setCustomOriginCity] = useState<string>('');
+  const [destinationProvince, setDestinationProvince] = useState<string>('Jawa Tengah');
   const [selectedClusters, setSelectedClusters] = useState<JawaTengahCluster[]>([
     'Semarang',
     'Dieng',
     'Magelang',
   ]);
   const [startDate, setStartDate] = useState('2026-12-24');
-  const [endDate, setEndDate] = useState('2026-12-26');
+  const [endDate, setEndDate] = useState('2026-12-27');
 
   // Step 2: Berapa Orang, Kendaraan Apa, & Gaya Perjalanan
   const [participantCount, setParticipantCount] = useState<1 | 2 | 3 | 4>(4);
-  const [transport, setTransport] = useState<PrimaryTransport>('mobil_pribadi');
+  const [transport, setTransport] = useState<PrimaryTransport>('kapal_laut');
+  const [transportSubtype, setTransportSubtype] = useState<
+    'dlu' | 'pelni' | 'flight_regular' | 'flight_transit' | 'kai' | 'private_car' | 'bus'
+  >('dlu');
   const [vehicleDetails, setVehicleDetails] = useState(
-    'Mobil Pribadi via Tol Trans-Jawa PP'
+    'Kapal DLU KM Dharma Ferry II PP (Pontianak - Semarang)'
   );
   const [vibe, setVibe] = useState<TravelVibe>('alam');
   const [pace, setPace] = useState<TripPace>('seimbang');
 
   // Step 3: Budget Bawaan Tiap Orang & Pertanyaan Tiket PP dll
-  const [ownerBudget, setOwnerBudget] = useState<number>(2500000);
+  const [ownerBudget, setOwnerBudget] = useState<number>(4500000);
+  const [oneWayFare, setOneWayFare] = useState<number>(585000);
+  const [isCalculatingFromOneWay, setIsCalculatingFromOneWay] = useState<boolean>(true);
   const [includesReturnTicket, setIncludesReturnTicket] = useState<boolean>(true);
-  const [returnTicketEstimate, setReturnTicketEstimate] = useState<number>(1200000);
+  const [returnTicketEstimate, setReturnTicketEstimate] = useState<number>(585000 * 2 * 4);
   const [includesLodging, setIncludesLodging] = useState<boolean>(true);
   const [includesEntranceTickets, setIncludesEntranceTickets] = useState<boolean>(true);
   const [includesEmergencyFund, setIncludesEmergencyFund] = useState<boolean>(true);
@@ -125,19 +161,19 @@ export default function NewTripOnboardingPage() {
       email: 'andi.pratama@gmail.com',
       displayName: 'Andi Pratama',
       role: 'editor',
-      personalBudget: 2500000,
+      personalBudget: 4500000,
     },
     {
       email: 'budi.santoso@gmail.com',
       displayName: 'Budi Santoso',
       role: 'editor',
-      personalBudget: 2500000,
+      personalBudget: 4500000,
     },
     {
       email: 'citra.lestari@gmail.com',
       displayName: 'Citra Lestari',
       role: 'viewer',
-      personalBudget: 2000000,
+      personalBudget: 4500000,
     },
   ]);
 
@@ -154,19 +190,19 @@ export default function NewTripOnboardingPage() {
           email: 'andi.pratama@gmail.com',
           displayName: 'Andi Pratama',
           role: 'editor' as const,
-          personalBudget: 2500000,
+          personalBudget: 4500000,
         },
         {
           email: 'budi.santoso@gmail.com',
           displayName: 'Budi Santoso',
           role: 'editor' as const,
-          personalBudget: 2500000,
+          personalBudget: 4500000,
         },
         {
           email: 'citra.lestari@gmail.com',
           displayName: 'Citra Lestari',
           role: 'viewer' as const,
-          personalBudget: 2000000,
+          personalBudget: 4500000,
         },
       ];
       const next = [...prev];
@@ -175,7 +211,7 @@ export default function NewTripOnboardingPage() {
           email: `teman${next.length + 1}@gmail.com`,
           displayName: `Rekan ${next.length + 1}`,
           role: 'editor' as const,
-          personalBudget: 2000000,
+          personalBudget: 4500000,
         };
         next.push(fallback);
       }
@@ -183,8 +219,47 @@ export default function NewTripOnboardingPage() {
     });
   }, [participantCount]);
 
+  // Sync return ticket estimate when one-way fare changes
+  useEffect(() => {
+    if (isCalculatingFromOneWay && includesReturnTicket) {
+      setReturnTicketEstimate(oneWayFare * 2 * participantCount);
+    }
+  }, [oneWayFare, participantCount, isCalculatingFromOneWay, includesReturnTicket]);
+
+  const handleSelectTransport = (t: PrimaryTransport) => {
+    setTransport(t);
+    if (t === 'kapal_laut') {
+      setTransportSubtype('dlu');
+      setVehicleDetails('Kapal DLU KM Dharma Ferry II PP (Pontianak - Semarang)');
+      setOneWayFare(585000);
+      setReturnTicketEstimate(585000 * 2 * participantCount);
+    } else if (t === 'pesawat') {
+      setTransportSubtype('flight_regular');
+      setVehicleDetails('Pesawat Lion Air Supadio (PNK) - Ahmad Yani (SRG) PP');
+      setOneWayFare(1250000);
+      setReturnTicketEstimate(1250000 * 2 * participantCount);
+    } else if (t === 'mobil_pribadi') {
+      setTransportSubtype('private_car');
+      setVehicleDetails('Mobil Pribadi via Tol Trans-Jawa PP');
+      setOneWayFare(450000);
+      setReturnTicketEstimate(900000);
+    } else if (t === 'kereta_sewa') {
+      setTransportSubtype('kai');
+      setVehicleDetails('Kereta Api Eksekutif PP + Sewa Motor/Mobil Lokal');
+      setOneWayFare(450000);
+      setReturnTicketEstimate(450000 * 2 * participantCount);
+    } else {
+      const v = VEHICLE_OPTIONS.find((opt) => opt.id === t);
+      setVehicleDetails(v?.defaultNote || 'Kendaraan Grup');
+    }
+  };
+
   const totalGroupBudget =
     ownerBudget + companions.reduce((sum, c) => sum + (c.personalBudget || 0), 0);
+
+  const totalGroupReturnTicket = includesReturnTicket ? returnTicketEstimate : 0;
+  const groupFunBudget = Math.max(0, totalGroupBudget - totalGroupReturnTicket);
+  const perPersonFunBudget = Math.round(groupFunBudget / Math.max(1, participantCount));
 
   const categoryBreakdown = calculateRecommendedCategoryBudgets(
     totalGroupBudget,
@@ -317,6 +392,12 @@ export default function NewTripOnboardingPage() {
         vibeScores,
         categoryBudgetPlan: categoryBreakdown,
         budgetInclusion: {
+          originCity: originCity === 'Lainnya' ? (customOriginCity || 'Pontianak') : originCity,
+          originProvince: originCity === 'Pontianak' ? 'Kalimantan Barat' : 'Domestik',
+          destinationProvince,
+          transportSubtype,
+          oneWayFarePerPerson: oneWayFare,
+          returnTicketFarePerPerson: oneWayFare * 2,
           includesReturnTicket,
           returnTicketEstimate: includesReturnTicket ? returnTicketEstimate : 0,
           includesLodging,
@@ -413,6 +494,58 @@ export default function NewTripOnboardingPage() {
               maxLength={60}
               required
             />
+
+            {/* Rute Lintas Pulau: Kota Asal & Provinsi Tujuan */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl border border-[#DFD8CC] bg-[#FAF8F5] p-4">
+              <div>
+                <CustomSelect
+                  label="Kota Asal Keberangkatan"
+                  value={originCity}
+                  onChange={(val) => {
+                    setOriginCity(val);
+                    if (val === 'Pontianak') {
+                      setTransport('kapal_laut');
+                      setTransportSubtype('dlu');
+                      setVehicleDetails('Kapal DLU KM Dharma Ferry II PP (Pontianak - Semarang)');
+                      setOneWayFare(585000);
+                    }
+                  }}
+                  options={ORIGIN_CITY_OPTIONS}
+                />
+                {originCity === 'Lainnya' && (
+                  <div className="mt-2">
+                    <StrictTextInput
+                      mode="title_text"
+                      placeholder="Tulis kota asal Anda..."
+                      value={customOriginCity}
+                      onChange={setCustomOriginCity}
+                      maxLength={40}
+                    />
+                  </div>
+                )}
+                <p className="text-[11px] text-[#7D736B] mt-1">
+                  {originCity === 'Pontianak'
+                    ? '📍 Rute Lintas Pulau: Kapal Ferry DLU ke Semarang / Pesawat PNK ➔ SRG'
+                    : 'Titik awal perjalanan rombongan Anda'}
+                </p>
+              </div>
+
+              <div>
+                <CustomSelect
+                  label="Provinsi / Wilayah Tujuan"
+                  value={destinationProvince}
+                  onChange={setDestinationProvince}
+                  options={[
+                    { value: 'Jawa Tengah', label: 'Jawa Tengah (Semarang, Dieng, Magelang, Solo)' },
+                    { value: 'Jawa Timur', label: 'Jawa Timur (Bromo, Malang, Banyuwangi)', badge: 'Segera Hadir' },
+                    { value: 'Jawa Barat', label: 'Jawa Barat (Bandung, Bogor, Cirebon)', badge: 'Segera Hadir' },
+                  ]}
+                />
+                <p className="text-[11px] text-[#7D736B] mt-1">
+                  Tujuan utama ekspedisi liburan Anda
+                </p>
+              </div>
+            </div>
 
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#6E655E] mb-2.5">
@@ -540,25 +673,42 @@ export default function NewTripOnboardingPage() {
 
             {/* Pertanyaan 2: Menggunakan Kendaraan Apa? */}
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#6E655E] mb-2">
-                Menggunakan Kendaraan Apa?
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#6E655E]">
+                  Menggunakan Kendaraan Apa ({originCity} ➔ {destinationProvince})?
+                </label>
+                {originCity === 'Pontianak' && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-[#EEF2EC] px-2 py-0.5 text-[10px] font-bold text-[#4F5D48]">
+                    <Ship className="h-3 w-3" /> Rekomendasi: Kapal DLU / Pesawat
+                  </span>
+                )}
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {VEHICLE_OPTIONS.map((v) => (
                   <button
                     key={v.id}
                     type="button"
-                    onClick={() => {
-                      setTransport(v.id);
-                      setVehicleDetails(v.defaultNote);
-                    }}
-                    className={`rounded-xl border p-3.5 text-left transition-all cursor-pointer ${
+                    onClick={() => handleSelectTransport(v.id)}
+                    className={`rounded-xl border p-3.5 text-left transition-all cursor-pointer relative ${
                       transport === v.id
-                        ? 'border-[#2A2421] bg-[#2A2421] text-white'
+                        ? 'border-[#2A2421] bg-[#2A2421] text-white shadow-xs'
                         : 'border-[#DFD8CC] bg-white text-[#2A2421] hover:border-[#B8AFA3]'
                     }`}
                   >
-                    <p className="text-xs sm:text-sm font-bold">{v.title}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs sm:text-sm font-bold">{v.title}</p>
+                      {v.badge && (
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                            transport === v.id
+                              ? 'bg-white/20 text-white'
+                              : 'bg-[#EFECE4] text-[#5C534C]'
+                          }`}
+                        >
+                          {v.badge}
+                        </span>
+                      )}
+                    </div>
                     <p
                       className={`text-[11px] mt-0.5 ${
                         transport === v.id ? 'text-[#D2C9B8]' : 'text-[#6E655E]'
@@ -570,6 +720,128 @@ export default function NewTripOnboardingPage() {
                 ))}
               </div>
             </div>
+
+            {/* Sub-Pilihan Spesifik: Kapal Laut (DLU vs Pelni) */}
+            {transport === 'kapal_laut' && (
+              <div className="rounded-xl border border-[#DFD8CC] bg-[#FAF8F5] p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-[#2A2421] flex items-center gap-1.5">
+                    <Ship className="h-4 w-4 text-[#4F5D48]" />
+                    Pilihan Operator & Armada Kapal ({originCity} ➔ Semarang):
+                  </p>
+                  <span className="text-[10px] text-[#7D736B]">Rute Tanjung Emas Semarang</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransportSubtype('dlu');
+                      setVehicleDetails('Kapal DLU KM Dharma Ferry II PP (Kamar AC, Resto, Bioskop)');
+                      setOneWayFare(585000);
+                    }}
+                    className={`rounded-lg border p-3 text-left cursor-pointer transition-all ${
+                      transportSubtype === 'dlu'
+                        ? 'border-[#4F5D48] bg-[#EEF2EC] text-[#2A2421] font-semibold'
+                        : 'border-[#DFD8CC] bg-white text-[#5C534C]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-[#2A2421]">⭐ Kapal DLU (Dharma Lautan Utama)</p>
+                      <span className="rounded bg-[#4F5D48] text-white text-[9px] font-bold px-1.5 py-0.5">Fasilitas Lengkap</span>
+                    </div>
+                    <p className="text-[11px] text-[#6E655E] mt-1">
+                      KM Dharma Ferry II / VII. Kamar tidur ber-AC, restoran 24 jam, mini bioskop, live music.
+                    </p>
+                    <p className="text-[11px] font-bold text-[#4F5D48] mt-1.5">
+                      Estimasi Tiket: ~Rp 585.000 / orang (Sekali Jalan)
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransportSubtype('pelni');
+                      setVehicleDetails('Kapal Pelni KM Lawit / Bukit Raya PP');
+                      setOneWayFare(420000);
+                    }}
+                    className={`rounded-lg border p-3 text-left cursor-pointer transition-all ${
+                      transportSubtype === 'pelni'
+                        ? 'border-[#4F5D48] bg-[#EEF2EC] text-[#2A2421] font-semibold'
+                        : 'border-[#DFD8CC] bg-white text-[#5C534C]'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-[#2A2421]">Kapal Pelni (Pelayaran Nasional)</p>
+                    <p className="text-[11px] text-[#6E655E] mt-1">
+                      KM Lawit / KM Bukit Raya. Tiket ekonomi reguler standar lintas pulau.
+                    </p>
+                    <p className="text-[11px] font-bold text-[#4F5D48] mt-1.5">
+                      Estimasi Tiket: ~Rp 420.000 / orang (Sekali Jalan)
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Pilihan Spesifik: Pesawat Terbang */}
+            {transport === 'pesawat' && (
+              <div className="rounded-xl border border-[#DFD8CC] bg-[#FAF8F5] p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-[#2A2421] flex items-center gap-1.5">
+                    <Plane className="h-4 w-4 text-[#4F5D48]" />
+                    Pilihan Maskapai & Detail Penerbangan:
+                  </p>
+                  <span className="text-[10px] text-[#7D736B]">Bandara Ahmad Yani (SRG) / YIA</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransportSubtype('flight_regular');
+                      setVehicleDetails('Pesawat Reguler Lion Air / Super Air Jet (Bagasi 20kg)');
+                      setOneWayFare(1150000);
+                    }}
+                    className={`rounded-lg border p-3 text-left cursor-pointer transition-all ${
+                      transportSubtype === 'flight_regular'
+                        ? 'border-[#4F5D48] bg-[#EEF2EC] text-[#2A2421] font-semibold'
+                        : 'border-[#DFD8CC] bg-white text-[#5C534C]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-[#2A2421]">Penerbangan Langsung (Direct)</p>
+                      <span className="rounded bg-[#2A2421] text-white text-[9px] font-bold px-1.5 py-0.5">Efisien</span>
+                    </div>
+                    <p className="text-[11px] text-[#6E655E] mt-1">
+                      Bandara Supadio (PNK) ➔ Ahmad Yani (SRG) / YIA. Lion Air / Super Air Jet.
+                    </p>
+                    <p className="text-[11px] font-bold text-[#4F5D48] mt-1.5">
+                      Estimasi Tiket: ~Rp 1.150.000 / orang (Sekali Jalan)
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTransportSubtype('flight_transit');
+                      setVehicleDetails('Pesawat Garuda / Batik Air (Transit Jakarta CGK)');
+                      setOneWayFare(1850000);
+                    }}
+                    className={`rounded-lg border p-3 text-left cursor-pointer transition-all ${
+                      transportSubtype === 'flight_transit'
+                        ? 'border-[#4F5D48] bg-[#EEF2EC] text-[#2A2421] font-semibold'
+                        : 'border-[#DFD8CC] bg-white text-[#5C534C]'
+                    }`}
+                  >
+                    <p className="text-xs font-bold text-[#2A2421]">Penerbangan Full-Service / Transit</p>
+                    <p className="text-[11px] text-[#6E655E] mt-1">
+                      Batik Air / Garuda Indonesia via Jakarta (CGK) dengan bagasi 20kg & inflight meal.
+                    </p>
+                    <p className="text-[11px] font-bold text-[#4F5D48] mt-1.5">
+                      Estimasi Tiket: ~Rp 1.850.000 / orang (Sekali Jalan)
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
 
             <StrictTextInput
               mode="title_text"
@@ -778,15 +1050,127 @@ export default function NewTripOnboardingPage() {
               </div>
 
               {includesReturnTicket && (
-                <div className="pt-2">
-                  <NumericCurrencyInput
-                    label={`Estimasi Biaya Tiket PP / BBM & Tol PP (${vehicleDetails})`}
-                    value={returnTicketEstimate}
-                    onChange={setReturnTicketEstimate}
-                    helperText="Otomatis masuk ke laporan pengeluaran Transportasi Utama grup."
-                  />
+                <div className="rounded-xl border border-[#DFD8CC] bg-white p-4 space-y-3 mt-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EDE8DD] pb-3">
+                    <div>
+                      <p className="text-xs font-bold text-[#2A2421] flex items-center gap-1.5">
+                        <Ship className="h-4 w-4 text-[#4F5D48]" />
+                        Kalkulator Tiket PP ({vehicleDetails})
+                      </p>
+                      <p className="text-[11px] text-[#6E655E]">
+                        Rute {originCity} ➔ {destinationProvince} (Pulang - Pergi)
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-[#7D736B]">Metode:</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsCalculatingFromOneWay(true)}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg cursor-pointer ${
+                          isCalculatingFromOneWay
+                            ? 'bg-[#4F5D48] text-white shadow-2xs'
+                            : 'bg-[#EFECE4] text-[#4A423D]'
+                        }`}
+                      >
+                        Tarif 1-Way x 2
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCalculatingFromOneWay(false)}
+                        className={`px-2.5 py-1 text-xs font-bold rounded-lg cursor-pointer ${
+                          !isCalculatingFromOneWay
+                            ? 'bg-[#4F5D48] text-white shadow-2xs'
+                            : 'bg-[#EFECE4] text-[#4A423D]'
+                        }`}
+                      >
+                        Input Total Bebas
+                      </button>
+                    </div>
+                  </div>
+
+                  {isCalculatingFromOneWay ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                      <NumericCurrencyInput
+                        label="Tarif Tiket Sekali Jalan (per orang)"
+                        value={oneWayFare}
+                        onChange={(val) => setOneWayFare(val)}
+                        helperText="Contoh: Tiket Kapal DLU Pontianak-Semarang Rp 585.000"
+                      />
+                      <div className="rounded-xl bg-[#FAF8F5] border border-[#DFD8CC] p-3">
+                        <p className="text-[10px] uppercase font-bold text-[#7D736B]">Kalkulasi Otomatis PP</p>
+                        <p className="text-sm sm:text-base font-bold text-[#2A2421] mt-0.5">
+                          Rp {(oneWayFare * 2).toLocaleString('id-ID')}{' '}
+                          <span className="text-xs font-normal text-[#6E655E]">/ orang (PP)</span>
+                        </p>
+                        <p className="text-[11px] text-[#4F5D48] font-semibold mt-1">
+                          Total {participantCount} Peserta: Rp {(oneWayFare * 2 * participantCount).toLocaleString('id-ID')}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <NumericCurrencyInput
+                      label={`Total Estimasi Biaya Tiket PP Rombongan (${participantCount} orang)`}
+                      value={returnTicketEstimate}
+                      onChange={setReturnTicketEstimate}
+                      helperText="Otomatis dialokasikan ke pos Transportasi Utama Pulang-Pergi."
+                    />
+                  )}
                 </div>
               )}
+            </div>
+
+            {/* Visual Bento: Budget Senang-Senang Bersih di Lokasi */}
+            <div className="rounded-2xl border-2 border-[#4F5D48]/30 bg-[#FAF8F5] p-4 sm:p-5 space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#DFD8CC] pb-3">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#4F5D48] text-white text-sm shadow-2xs">
+                    ✨
+                  </span>
+                  <div>
+                    <h4 className="text-sm sm:text-base font-bold text-[#2A2421]">
+                      Alokasi Bersih: Budget Senang-Senang di Lokasi
+                    </h4>
+                    <p className="text-xs text-[#6E655E]">
+                      Sisa dana siap pakai setelah dipotong tiket perjalanan PP ({vehicleDetails})
+                    </p>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#4F5D48] px-3 py-1.5 text-xs font-bold text-white shadow-2xs self-start sm:self-auto">
+                  {totalGroupBudget > 0 ? Math.round((groupFunBudget / totalGroupBudget) * 100) : 0}% Uang Senang-Senang
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-xl bg-white border border-[#DFD8CC] p-3.5 text-left">
+                  <p className="text-[10px] uppercase font-bold text-[#7D736B]">1. Total Dana Bawaan</p>
+                  <p className="text-base sm:text-lg font-bold text-[#2A2421] mt-0.5 tabular-nums">
+                    Rp {totalGroupBudget.toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[11px] text-[#7D736B] mt-0.5">
+                    Rp {Math.round(totalGroupBudget / Math.max(1, participantCount)).toLocaleString('id-ID')} / orang
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-[#FBF5F2] border border-[#E8D4C8] p-3.5 text-left">
+                  <p className="text-[10px] uppercase font-bold text-[#C46A4E]">2. Terkunci Tiket PP ({transport === 'kapal_laut' ? 'Kapal DLU' : 'Pesawat'})</p>
+                  <p className="text-base sm:text-lg font-bold text-[#C46A4E] mt-0.5 tabular-nums">
+                    - Rp {totalGroupReturnTicket.toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[11px] text-[#A6533A] mt-0.5">
+                    Rp {Math.round(totalGroupReturnTicket / Math.max(1, participantCount)).toLocaleString('id-ID')} / orang
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-[#EEF2EC] border border-[#CFDAC9] p-3.5 text-left">
+                  <p className="text-[10px] uppercase font-bold text-[#4F5D48]">3. Sisa Uang Senang-Senang</p>
+                  <p className="text-base sm:text-lg font-bold text-[#4F5D48] mt-0.5 tabular-nums">
+                    Rp {groupFunBudget.toLocaleString('id-ID')}
+                  </p>
+                  <p className="text-[11px] font-bold text-[#3D4937] mt-0.5">
+                    🌟 Rp {perPersonFunBudget.toLocaleString('id-ID')} / orang
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Pratinjau Proporsi Kategori */}
@@ -948,6 +1332,36 @@ export default function NewTripOnboardingPage() {
                 ))}
               </div>
             )}
+
+            {/* Ringkasan Akhir Tiket & Senang-Senang */}
+            <div className="rounded-xl border border-[#DFD8CC] bg-[#FAF8F5] p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-[#4F5D48] text-white p-1.5 font-bold">
+                  {transport === 'kapal_laut' ? '🚢' : '✈️'}
+                </span>
+                <div>
+                  <p className="font-bold text-[#2A2421]">
+                    Rute: {originCity} ➔ {destinationProvince}
+                  </p>
+                  <p className="text-[11px] text-[#6E655E]">{vehicleDetails}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-[10px] text-[#7D736B] uppercase font-bold">Tiket PP ({participantCount} org)</p>
+                  <p className="font-bold text-[#C46A4E] tabular-nums">
+                    Rp {totalGroupReturnTicket.toLocaleString('id-ID')}
+                  </p>
+                </div>
+                <div className="h-6 w-px bg-[#DFD8CC]" />
+                <div className="text-right">
+                  <p className="text-[10px] text-[#7D736B] uppercase font-bold">Dana Senang-Senang</p>
+                  <p className="font-bold text-[#4F5D48] tabular-nums">
+                    Rp {groupFunBudget.toLocaleString('id-ID')} (Rp {perPersonFunBudget.toLocaleString('id-ID')}/org)
+                  </p>
+                </div>
+              </div>
+            </div>
           </BentoCard>
         )}
 

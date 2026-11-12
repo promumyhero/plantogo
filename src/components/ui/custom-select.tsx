@@ -90,7 +90,7 @@ export function CustomSelect({
       {open && (
         <div
           className={`absolute left-0 z-50 mt-1.5 w-full ${
-            variant === 'compact' ? 'min-w-[150px]' : 'min-w-[210px]'
+            variant === 'compact' ? 'min-w-37.5' : 'min-w-52.5'
           } max-h-60 overflow-y-auto rounded-xl border border-[#DFD8CC] bg-white p-1.5 text-[#2A2421] shadow-xl`}
         >
           {options.map((opt) => {

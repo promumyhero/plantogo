@@ -349,6 +349,13 @@ export function calculateRecommendedCategoryBudgets(
   if (transport === 'mobil_pribadi') {
     weights.transport += 0.03;
     weights.other = Math.max(0.02, weights.other - 0.03);
+  } else if (transport === 'kapal_laut') {
+    weights.transport += 0.05;
+    weights.other = Math.max(0.02, weights.other - 0.05);
+  } else if (transport === 'pesawat') {
+    weights.transport += 0.10;
+    weights.lodging = Math.max(0.20, weights.lodging - 0.05);
+    weights.other = Math.max(0.02, weights.other - 0.05);
   }
 
   const categories: ExpenseCategory[] = [
@@ -411,7 +418,11 @@ export function generateHybridItinerary(params: {
     answers.pace === 'santai' ? 2 : answers.pace === 'seimbang' ? 3 : 4;
 
   const transitModeLabel =
-    answers.transport === 'mobil_pribadi'
+    answers.transport === 'kapal_laut'
+      ? 'Kapal Laut DLU / Pelni Lintas Pulau'
+      : answers.transport === 'pesawat'
+      ? 'Penerbangan Pesawat Komersial PP'
+      : answers.transport === 'mobil_pribadi'
       ? 'Mobil Pribadi via Tol Trans-Jawa / Jalur Provinsi'
       : answers.transport === 'kereta_sewa'
       ? 'Kereta Api + Sewa Kendaraan Lokal'
@@ -424,6 +435,45 @@ export function generateHybridItinerary(params: {
     const clusterForDay = selectedClusters[(day - 1) % selectedClusters.length];
     const daySpots = fallbackSpots.filter((s) => s.cluster === clusterForDay);
     const pool = daySpots.length > 0 ? daySpots : fallbackSpots;
+
+    // Injeksi Keberangkatan PP Lintas Pulau (Hari 1)
+    if (day === 1 && answers.budgetInclusion?.includesReturnTicket) {
+      const origin = answers.budgetInclusion.originCity || 'Pontianak';
+      const destination = answers.budgetInclusion.destinationProvince || 'Semarang (Jawa Tengah)';
+      const vehicleNote =
+        answers.budgetInclusion.vehicleDetails ||
+        (answers.transport === 'kapal_laut'
+          ? 'Kapal DLU KM Dharma Ferry II'
+          : answers.transport === 'pesawat'
+          ? 'Pesawat Lion Air Supadio - Ahmad Yani'
+          : 'Transportasi Utama');
+      const oneWayCost = answers.budgetInclusion.oneWayFarePerPerson
+        ? answers.budgetInclusion.oneWayFarePerPerson
+        : Math.round(
+            answers.budgetInclusion.returnTicketEstimate /
+              Math.max(1, (answers.budgetInclusion.participantCount || 1) * 2)
+          );
+
+      generated.push({
+        id: `item-${tripId}-d1-departure-pp`,
+        trip_id: tripId,
+        day_number: 1,
+        start_time: '06:30',
+        end_time: '09:30',
+        item_type: 'transit',
+        title: `Keberangkatan PP: ${origin} ➔ ${destination}`,
+        location_name: `Pelabuhan / Bandara ${origin}`,
+        city_cluster: selectedClusters[0] || 'Semarang',
+        estimated_cost: oneWayCost,
+        transit_mode: vehicleNote,
+        transit_duration_mins: 180,
+        notes: `Tiket perjalanan pergi (${vehicleNote}). Fasilitas lengkap, kamar AC & boarding nyaman.`,
+        status: 'scheduled',
+        is_locked: true,
+        created_by: creatorMemberId,
+        created_at: new Date().toISOString(),
+      });
+    }
 
     for (let slot = 0; slot < Math.min(maxSpotsPerDay, pool.length); slot++) {
       const chosen = pool[(spotCursor + slot) % pool.length];
@@ -469,6 +519,46 @@ export function generateHybridItinerary(params: {
         created_at: new Date().toISOString(),
       });
     }
+
+    // Injeksi Kepulangan PP Lintas Pulau (Hari Terakhir)
+    if (day === diffDays && answers.budgetInclusion?.includesReturnTicket) {
+      const origin = answers.budgetInclusion.originCity || 'Pontianak';
+      const destination = answers.budgetInclusion.destinationProvince || 'Semarang';
+      const vehicleNote =
+        answers.budgetInclusion.vehicleDetails ||
+        (answers.transport === 'kapal_laut'
+          ? 'Kapal DLU KM Dharma Ferry II'
+          : answers.transport === 'pesawat'
+          ? 'Pesawat Lion Air Ahmad Yani - Supadio'
+          : 'Transportasi Utama');
+      const oneWayCost = answers.budgetInclusion.oneWayFarePerPerson
+        ? answers.budgetInclusion.oneWayFarePerPerson
+        : Math.round(
+            answers.budgetInclusion.returnTicketEstimate /
+              Math.max(1, (answers.budgetInclusion.participantCount || 1) * 2)
+          );
+
+      generated.push({
+        id: `item-${tripId}-d${diffDays}-return-pp`,
+        trip_id: tripId,
+        day_number: diffDays,
+        start_time: '18:30',
+        end_time: '21:30',
+        item_type: 'transit',
+        title: `Kepulangan PP: ${destination} ➔ ${origin}`,
+        location_name: `Pelabuhan Tanjung Emas / Bandara Semarang`,
+        city_cluster: selectedClusters[selectedClusters.length - 1] || 'Semarang',
+        estimated_cost: oneWayCost,
+        transit_mode: vehicleNote,
+        transit_duration_mins: 180,
+        notes: `Tiket perjalanan pulang ke ${origin} (${vehicleNote}). Penataan oleh-oleh & persiapan kepulangan.`,
+        status: 'scheduled',
+        is_locked: true,
+        created_by: creatorMemberId,
+        created_at: new Date().toISOString(),
+      });
+    }
+
     spotCursor += maxSpotsPerDay;
   }
 

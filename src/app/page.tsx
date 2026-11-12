@@ -93,7 +93,7 @@ export default function LandingPage() {
             HERO SECTION (Earth Tone + Polished Custom Select Dropdowns)
         =================================================================== */}
         <section className="mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
-          <div className="relative rounded-3xl bg-[#231E1B] text-white shadow-xl min-h-[560px] flex flex-col justify-between overflow-visible">
+          <div className="relative rounded-3xl bg-[#231E1B] text-white shadow-xl min-h-140 flex flex-col justify-between overflow-visible">
             {/* Background Landscape Image */}
             <div className="absolute inset-0 overflow-hidden rounded-3xl">
               <div
@@ -342,7 +342,7 @@ export default function LandingPage() {
               {CURATED_JAWA_TENGAH_SPOTS.filter((s) => s.highlight_rank).map((spot) => (
                 <div
                   key={spot.id}
-                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#2E2723] aspect-[3/4] flex flex-col justify-end p-5"
+                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#2E2723] aspect-3/4 flex flex-col justify-end p-5"
                 >
                   <img
                     src={spot.image_url}

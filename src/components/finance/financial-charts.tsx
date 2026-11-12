@@ -280,20 +280,55 @@ export function FinancialCharts({
             </div>
           </div>
 
-          {/* Budget Inclusion Info Strip */}
+          {/* Budget Inclusion & Senang-Senang Info Strip */}
           {inclusion && (
-            <div className="pt-3 border-t border-[#EDE8DD] flex flex-wrap items-center gap-2 text-[11px] text-[#5C534C]">
-              <span className="font-semibold text-[#2A2421]">Cakupan Budget:</span>
-              <span className="rounded-md bg-[#EFECE4] px-2 py-0.5">
-                {inclusion.includesReturnTicket ? '✓ Termasuk Tiket PP' : '✗ Belum Tiket PP'}
-              </span>
-              <span className="rounded-md bg-[#EFECE4] px-2 py-0.5">
-                {inclusion.includesLodging ? '✓ Termasuk Hotel' : '✗ Belum Hotel'}
-              </span>
-              {inclusion.vehicleDetails && (
-                <span className="rounded-md bg-[#EFECE4] px-2 py-0.5">
-                  🚗 {inclusion.vehicleDetails}
+            <div className="pt-3 border-t border-[#EDE8DD] space-y-2">
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#5C534C]">
+                <span className="font-semibold text-[#2A2421]">Rute & Transport:</span>
+                <span className="rounded-md bg-[#EFECE4] px-2 py-0.5 font-medium">
+                  {inclusion.originCity ? `${inclusion.originCity} ➔ ` : ''}
+                  {trip.onboarding_answers?.transport === 'kapal_laut'
+                    ? '🚢 Kapal DLU / Pelni'
+                    : trip.onboarding_answers?.transport === 'pesawat'
+                    ? '✈️ Pesawat Komersial'
+                    : '🚗 Darat'}
                 </span>
+                <span className="rounded-md bg-[#EFECE4] px-2 py-0.5">
+                  {inclusion.vehicleDetails || 'Transport Utama'}
+                </span>
+              </div>
+
+              {inclusion.includesReturnTicket && (
+                <div className="rounded-xl border border-[#DFD8CC] bg-[#FAF8F5] p-2.5 flex items-center justify-between text-xs">
+                  <div>
+                    <p className="text-[10px] uppercase font-bold text-[#4F5D48]">
+                      Sisa Budget Senang-Senang di Lokasi
+                    </p>
+                    <p className="text-[11px] text-[#6E655E]">
+                      Setelah dikurangi Tiket PP (Rp{' '}
+                      {(inclusion.returnTicketEstimate || 0).toLocaleString('id-ID')})
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-[#4F5D48] tabular-nums">
+                      Rp{' '}
+                      {Math.max(
+                        0,
+                        (trip.total_budget_plan || 0) - (inclusion.returnTicketEstimate || 0)
+                      ).toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-[10px] text-[#7D736B]">
+                      ~Rp{' '}
+                      {Math.round(
+                        Math.max(
+                          0,
+                          (trip.total_budget_plan || 0) - (inclusion.returnTicketEstimate || 0)
+                        ) / Math.max(1, (members || []).length)
+                      ).toLocaleString('id-ID')}{' '}
+                      / orang
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}

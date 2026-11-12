@@ -21,16 +21,24 @@ export type PrimaryTransport =
   | 'rental_mobil'
   | 'kereta_sewa'
   | 'umum_travel'
-  | 'motor_touring';
+  | 'motor_touring'
+  | 'kapal_laut'
+  | 'pesawat';
 
 export interface BudgetInclusionConfig {
-  includesReturnTicket: boolean; // Apakah sudah termasuk tiket PP / Tol-BBM PP?
-  returnTicketEstimate: number;  // Estimasi biaya tiket PP / BBM PP grup
-  includesLodging: boolean;      // Apakah sudah termasuk penginapan?
-  includesEntranceTickets: boolean; // Apakah sudah termasuk tiket wisata?
-  includesEmergencyFund: boolean;   // Apakah sudah termasuk dana darurat / oleh-oleh?
-  vehicleDetails: string;        // Contoh: "Innova Reborn via Tol Trans-Jawa" atau "KA Argo Dwipangga PP"
-  participantCount: number;      // 1 s/d 4 orang
+  originCity?: string;             // Kota Asal, e.g. "Pontianak", "Jakarta", "Surabaya", "Balikpapan"
+  originProvince?: string;         // Provinsi Asal, e.g. "Kalimantan Barat"
+  destinationProvince?: string;    // Provinsi Tujuan, e.g. "Jawa Tengah"
+  transportSubtype?: 'dlu' | 'pelni' | 'flight_regular' | 'flight_transit' | 'kai' | 'private_car' | 'bus';
+  oneWayFarePerPerson?: number;    // Tarif tiket sekali jalan per orang (contoh: Rp 585.000 DLU)
+  returnTicketFarePerPerson?: number; // Tarif tiket PP per orang (contoh: Rp 1.170.000)
+  includesReturnTicket: boolean;   // Apakah sudah termasuk tiket PP / Tol-BBM PP?
+  returnTicketEstimate: number;    // Total grup estimasi biaya tiket PP / BBM PP grup
+  includesLodging: boolean;        // Apakah sudah termasuk penginapan?
+  includesEntranceTickets: boolean;// Apakah sudah termasuk tiket wisata?
+  includesEmergencyFund: boolean;  // Apakah sudah termasuk dana darurat / oleh-oleh?
+  vehicleDetails: string;          // Contoh: "Kapal DLU KM Dharma Ferry II PP (Pontianak - Semarang)"
+  participantCount: number;        // 1 s/d 4 orang
 }
 
 export interface OnboardingAnswers {
@@ -62,6 +70,7 @@ export interface Trip {
   owner_id: string;
   title: string;
   region: string;
+  origin_city?: string;
   start_date: string;
   end_date: string;
   total_budget_plan: number; // integer IDR (BIGINT in PostgreSQL)

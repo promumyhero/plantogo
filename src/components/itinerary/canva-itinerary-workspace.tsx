@@ -132,7 +132,7 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
   const [newLocation, setNewLocation] = useState<string>('');
   const [newCluster, setNewCluster] = useState<JawaTengahCluster>('Dieng');
   const [newType, setNewType] = useState<ItineraryItemType>('destination');
-  const [newCost, setNewCost] = useState<number>(150000);
+  const [newCost, setNewCost] = useState<number>(0);
   const [newNotes, setNewNotes] = useState<string>('');
 
   // Inline Editing Row State (Canva Table cell editing)
@@ -145,6 +145,9 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
   const [editCluster, setEditCluster] = useState<JawaTengahCluster>('Dieng');
   const [editType, setEditType] = useState<ItineraryItemType>('destination');
   const [editCost, setEditCost] = useState<number>(0);
+  const [editPaidBy, setEditPaidBy] = useState<string>('');
+  const [editSplitType, setEditSplitType] = useState<'all' | 'single' | 'custom'>('all');
+  const [editCustomMembers, setEditCustomMembers] = useState<string[]>([]);
   const [editNotes, setEditNotes] = useState<string>('');
 
   // Canva-style Share / Access Modal State
@@ -328,19 +331,29 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
     const currentStartTime = newStartTime || '08:00';
     const currentEndTime = newEndTime || '10:00';
 
-    const ok = addOrUpdateItineraryItem(trip.id, currentUser.email, {
-      day_number: Number(newDay) || 1,
-      start_time: currentStartTime,
-      end_time: currentEndTime,
-      item_type: newType,
-      title: newTitle.trim(),
-      location_name: newLocation.trim() || newCluster,
-      city_cluster: newCluster,
-      estimated_cost: newCost,
-      notes: newNotes.trim(),
-      status: 'scheduled',
-      is_locked: false,
-    });
+    const ok = addOrUpdateItineraryItem(
+      trip.id,
+      currentUser.email,
+      {
+        day_number: Number(newDay) || 1,
+        start_time: currentStartTime,
+        end_time: currentEndTime,
+        item_type: newType,
+        title: newTitle.trim(),
+        location_name: newLocation.trim() || newCluster,
+        city_cluster: newCluster,
+        estimated_cost: newCost,
+        notes: newNotes.trim(),
+        status: 'scheduled',
+        is_locked: false,
+      },
+      newCost > 0
+        ? {
+            paidByMemberId: activeMember?.id || members[0]?.id || '',
+            splitType: 'all',
+          }
+        : undefined
+    );
 
     if (ok) {
       // Auto-advance sequential time slot: automatically resume next start from current end_time
@@ -400,24 +413,66 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
         : 0
     );
     setEditNotes(item.notes || '');
+
+    // Synchronize linked financial settings (Who paid & Who shares)
+    const linkedExpense = bundle.expenses.find((e) => e.itinerary_item_id === item.id);
+    const defaultPayer = activeMember?.id || bundle.members[0]?.id || '';
+    if (linkedExpense) {
+      setEditPaidBy(linkedExpense.paid_by_member_id || defaultPayer);
+      const isSingle =
+        linkedExpense.splits.length === 1 &&
+        linkedExpense.splits[0].member_id === linkedExpense.paid_by_member_id;
+      const isAll = linkedExpense.splits.length === bundle.members.length;
+
+      if (isSingle) {
+        setEditSplitType('single');
+        setEditCustomMembers([linkedExpense.paid_by_member_id]);
+      } else if (isAll) {
+        setEditSplitType('all');
+        setEditCustomMembers(bundle.members.map((m) => m.id));
+      } else {
+        setEditSplitType('custom');
+        setEditCustomMembers(linkedExpense.splits.map((s) => s.member_id));
+      }
+    } else {
+      setEditPaidBy(defaultPayer);
+      setEditSplitType('all');
+      setEditCustomMembers(bundle.members.map((m) => m.id));
+    }
   };
 
   // Save Inline Edited Table Row
   const saveInlineEdit = (item: ItineraryItem) => {
-    const ok = addOrUpdateItineraryItem(trip.id, currentUser.email, {
-      id: item.id,
-      day_number: Number(editDay) || item.day_number,
-      start_time: editStartTime,
-      end_time: editEndTime,
-      item_type: editType,
-      title: editTitle,
-      location_name: editLocation || editCluster,
-      city_cluster: editCluster,
-      estimated_cost: editCost,
-      notes: editNotes,
-      status: item.status,
-      is_locked: item.is_locked,
-    });
+    const ok = addOrUpdateItineraryItem(
+      trip.id,
+      currentUser.email,
+      {
+        id: item.id,
+        day_number: Number(editDay) || item.day_number,
+        start_time: editStartTime,
+        end_time: editEndTime,
+        item_type: editType,
+        title: editTitle,
+        location_name: editLocation || editCluster,
+        city_cluster: editCluster,
+        estimated_cost: editCost,
+        notes: editNotes,
+        status: item.status,
+        is_locked: item.is_locked,
+      },
+      editCost > 0
+        ? {
+            paidByMemberId: editPaidBy || activeMember?.id || members[0]?.id || '',
+            splitType: editSplitType,
+            customMemberIds:
+              editSplitType === 'custom'
+                ? editCustomMembers
+                : editSplitType === 'single'
+                ? [editPaidBy || activeMember?.id || members[0]?.id || '']
+                : members.map((m) => m.id),
+          }
+        : undefined
+    );
     if (ok) {
       setEditingRowId(null);
     }
@@ -527,6 +582,12 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
     description: m.invited_email,
   }));
 
+  const splitScopeOptions = [
+    { value: 'all', label: `Bagi Rata (Semua ${members.length} Orang)` },
+    { value: 'single', label: 'Biaya Pribadi / Sendiri' },
+    { value: 'custom', label: 'Pilih Anggota (Berdua / Bertiga)' },
+  ];
+
   const splitTypeOptions = [
     { value: 'equal', label: `Bagi Rata (${members.length} Orang)` },
     { value: 'exact', label: 'Nominal Spesifik' },
@@ -542,7 +603,7 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Left: Trip Selector & Dates */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
-            <div className="min-w-[260px] sm:max-w-sm">
+            <div className="min-w-65 sm:max-w-sm">
               <CustomSelect
                 label="Rencana Perjalanan Aktif"
                 value={trip.id}
@@ -561,17 +622,23 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
                 {trip.onboarding_answers.clusters.join(', ')}
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#EFECE4] px-3 py-2 text-xs font-semibold text-[#4A423D]">
-                🚗{' '}
+                {trip.onboarding_answers.transport === 'kapal_laut'
+                  ? '🚢'
+                  : trip.onboarding_answers.transport === 'pesawat'
+                  ? '✈️'
+                  : '🚗'}{' '}
                 {trip.onboarding_answers.budgetInclusion?.vehicleDetails ||
                   trip.onboarding_answers.transport.replace('_', ' ')}
               </span>
               {trip.onboarding_answers.budgetInclusion?.includesReturnTicket && (
-                <span className="inline-flex items-center gap-1 rounded-xl bg-[#EEF2EC] border border-[#C5D3BE] px-2.5 py-2 text-[11px] font-bold text-[#3F4D39]">
-                  ✓ Termasuk Tiket PP (Rp{' '}
-                  {(
-                    trip.onboarding_answers.budgetInclusion.returnTicketEstimate || 0
-                  ).toLocaleString('id-ID')}
-                  )
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#EEF2EC] border border-[#C5D3BE] px-3 py-2 text-xs font-bold text-[#3F4D39]">
+                  <span>✓ Tiket PP:</span>
+                  <span className="tabular-nums">
+                    Rp{' '}
+                    {(
+                      trip.onboarding_answers.budgetInclusion.returnTicketEstimate || 0
+                    ).toLocaleString('id-ID')}
+                  </span>
                 </span>
               )}
             </div>
@@ -695,7 +762,7 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
 
         {activeSection === 'schedule_table' && (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="min-w-[180px]">
+            <div className="min-w-45">
               <CustomSelect
                 variant="compact"
                 value={dayFilter}
@@ -867,7 +934,7 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
                     label="Estimasi Biaya"
                     value={newCost}
                     onChange={setNewCost}
-                    placeholder="150.000"
+                    placeholder="0 (Gratis / Isi nanti)"
                   />
                 </div>
 
@@ -936,7 +1003,7 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-[#E5DFD3] bg-[#F5F1E8] text-[11px] font-bold uppercase tracking-wider text-[#6E655E]">
-                    <th className="py-3.5 pl-4 pr-1 w-[44px] text-center">
+                    <th className="py-3.5 pl-4 pr-1 w-11 text-center">
                       <input
                         key="master-table-select-all"
                         type="checkbox"
@@ -951,13 +1018,13 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
                         aria-label="Pilih semua rencana"
                       />
                     </th>
-                    <th className="py-3.5 pl-2 pr-3 w-[90px]">Hari</th>
-                    <th className="py-3.5 px-3 w-[135px]">Jam (WIB)</th>
-                    <th className="py-3.5 px-3 min-w-[230px]">Tujuan / Mau Kemana</th>
-                    <th className="py-3.5 px-3 w-[155px]">Kawasan & Tipe</th>
-                    <th className="py-3.5 px-3 w-[150px] text-right">Estimasi Biaya</th>
-                    <th className="py-3.5 px-3 min-w-[200px]">Catatan</th>
-                    <th className="py-3.5 pl-3 pr-5 w-[180px] text-right">
+                    <th className="py-3.5 pl-2 pr-3 w-22.5">Hari</th>
+                    <th className="py-3.5 px-3 w-33.75">Jam (WIB)</th>
+                    <th className="py-3.5 px-3 min-w-57.5">Tujuan / Mau Kemana</th>
+                    <th className="py-3.5 px-3 w-38.75">Kawasan & Tipe</th>
+                    <th className="py-3.5 px-3 w-37.5 text-right">Estimasi Biaya</th>
+                    <th className="py-3.5 px-3 min-w-50">Catatan</th>
+                    <th className="py-3.5 pl-3 pr-5 w-45 text-right">
                       Aksi Canva (Edit/Lock/Hapus)
                     </th>
                   </tr>
@@ -1043,12 +1110,74 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
                                 options={ITEM_TYPE_OPTIONS}
                               />
                             </td>
-                            <td className="py-3 px-2 align-top">
+                            <td className="py-3 px-2 align-top min-w-52.5 space-y-1.5">
                               <NumericCurrencyInput
                                 compact
                                 value={editCost}
                                 onChange={setEditCost}
+                                placeholder="0 (Tanpa biaya)"
                               />
+                              {editCost > 0 ? (
+                                <div className="space-y-1.5 rounded-lg border border-[#DFD8CC] bg-[#FAF8F5] p-2 text-left">
+                                  <CustomSelect
+                                    variant="compact"
+                                    label="Yang Talangi / Bayar"
+                                    value={editPaidBy || activeMember?.id || members[0]?.id || ''}
+                                    onChange={setEditPaidBy}
+                                    options={payerOptions}
+                                  />
+                                  <CustomSelect
+                                    variant="compact"
+                                    label="Ditanggung Oleh"
+                                    value={editSplitType}
+                                    onChange={(v) =>
+                                      setEditSplitType(v as 'all' | 'single' | 'custom')
+                                    }
+                                    options={splitScopeOptions}
+                                  />
+                                  {editSplitType === 'custom' && (
+                                    <div className="pt-1">
+                                      <p className="text-[10px] font-semibold text-[#6E655E] mb-1">
+                                        Pilih yang ikut patungan:
+                                      </p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {members.map((m) => {
+                                          const checked = editCustomMembers.includes(m.id);
+                                          return (
+                                            <button
+                                              key={m.id}
+                                              type="button"
+                                              onClick={() => {
+                                                setEditCustomMembers((prev) =>
+                                                  prev.includes(m.id)
+                                                    ? prev.length > 1
+                                                      ? prev.filter((id) => id !== m.id)
+                                                      : prev
+                                                    : [...prev, m.id]
+                                                );
+                                              }}
+                                              className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border cursor-pointer transition-colors ${
+                                                checked
+                                                  ? 'bg-[#4F5D48] text-white border-[#4F5D48]'
+                                                  : 'bg-white text-[#5C534C] border-[#DFD8CC]'
+                                              }`}
+                                            >
+                                              <span>{m.display_name.split(' ')[0]}</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                  <p className="text-[9px] font-semibold text-[#4F5D48] flex items-center gap-1">
+                                    <span>✓ Otomatis masuk Tabel Keuangan</span>
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-[#8C8279] italic">
+                                  Tanpa biaya (Gratis / belum ditentukan)
+                                </p>
+                              )}
                             </td>
                             <td className="py-3 px-2 align-top">
                               <StrictTextInput
@@ -1159,15 +1288,50 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
                             </p>
                           </td>
 
-                          {/* Estimated Cost */}
+                          {/* Estimated Cost & Financial Link Info */}
                           <td className="py-3.5 px-3 align-top text-right">
-                            <span className="font-bold text-[#2A2421] tabular-nums text-xs sm:text-sm">
-                              Rp {row.estimated_cost.toLocaleString('id-ID')}
-                            </span>
-                            {row.status === 'completed' && (
-                              <p className="text-[10px] font-semibold text-[#4F5D48] mt-0.5">
-                                ✓ Masuk Split-Bill
-                              </p>
+                            {row.estimated_cost <= 0 ? (
+                              <span className="inline-block rounded-md bg-[#EFECE4] px-2 py-0.5 text-[11px] font-medium text-[#7D736B]">
+                                Gratis / Tanpa Biaya
+                              </span>
+                            ) : (
+                              <div>
+                                <span className="font-bold text-[#2A2421] tabular-nums text-xs sm:text-sm">
+                                  Rp {row.estimated_cost.toLocaleString('id-ID')}
+                                </span>
+                                {(() => {
+                                  const linked = expenses.find((e) => e.itinerary_item_id === row.id);
+                                  const payer = linked
+                                    ? members.find((m) => m.id === linked.paid_by_member_id)
+                                    : null;
+                                  if (!linked || !payer) {
+                                    return (
+                                      <p className="text-[10px] text-[#8C8279] mt-0.5">
+                                        Estimasi Umum
+                                      </p>
+                                    );
+                                  }
+                                  const isSingle =
+                                    linked.splits.length === 1 &&
+                                    linked.splits[0].member_id === linked.paid_by_member_id;
+                                  const isAll = linked.splits.length === members.length;
+                                  return (
+                                    <div className="mt-1 flex flex-col items-end gap-0.5">
+                                      <span className="inline-flex items-center gap-1 rounded bg-[#EFECE4] px-1.5 py-0.5 text-[10px] font-semibold text-[#4F5D48]">
+                                        <Wallet className="h-2.5 w-2.5" />
+                                        Dibayar: {payer.display_name.split(' ')[0]}
+                                      </span>
+                                      <span className="text-[10px] text-[#7D736B]">
+                                        {isSingle
+                                          ? 'Pribadi'
+                                          : isAll
+                                          ? `Bagi Rata (${members.length} org)`
+                                          : `Patungan ${linked.splits.length} org`}
+                                      </span>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
                             )}
                           </td>
 
@@ -1397,11 +1561,27 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
                             {exp.incurred_at}
                           </td>
                           <td className="py-3 px-3 font-semibold text-[#2A2421]">
-                            {exp.title}
-                            <p className="text-[11px] text-[#7D736B] font-normal">
-                              Dibagi ke {exp.splits.length} anggota (@ Rp{' '}
-                              {(exp.splits[0]?.share_amount || 0).toLocaleString('id-ID')})
-                            </p>
+                            <div className="flex flex-col gap-0.5">
+                              {exp.itinerary_item_id && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#4F5D48] bg-[#EEF2EC] px-1.5 py-0.5 rounded w-fit">
+                                  <MapPin className="h-2.5 w-2.5 text-[#C46A4E]" />
+                                  Dari Jadwal Perjalanan
+                                </span>
+                              )}
+                              <span>{exp.title}</span>
+                              <p className="text-[11px] text-[#7D736B] font-normal">
+                                {exp.splits.length === 1 &&
+                                exp.splits[0].member_id === exp.paid_by_member_id
+                                  ? `Pengeluaran Pribadi (${payer?.display_name || 'Sendiri'})`
+                                  : exp.splits.length === members.length
+                                  ? `Dibagi rata ${members.length} anggota (@ Rp ${Math.round(
+                                      exp.amount / members.length
+                                    ).toLocaleString('id-ID')})`
+                                  : `Patungan ${exp.splits.length} orang (@ Rp ${Math.round(
+                                      exp.amount / Math.max(1, exp.splits.length)
+                                    ).toLocaleString('id-ID')})`}
+                              </p>
+                            </div>
                           </td>
                           <td className="py-3 px-3">
                             <span className="rounded-md bg-[#EFECE4] px-2 py-0.5 text-[11px] font-semibold text-[#4A423D]">

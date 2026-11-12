@@ -29,7 +29,7 @@ export function DotMatrixProgress({
 
   return (
     <div className="flex items-center justify-between gap-3 py-1.5">
-      <span className="text-xs font-medium text-[#6E655E] min-w-[96px] truncate">
+      <span className="text-xs font-medium text-[#6E655E] min-w-24 truncate">
         {label}
       </span>
       <div className="flex items-center gap-1.5 flex-1 justify-end">
@@ -45,7 +45,7 @@ export function DotMatrixProgress({
           );
         })}
       </div>
-      <span className="text-xs font-semibold tabular-nums text-[#2A2421] min-w-[44px] text-right">
+      <span className="text-xs font-semibold tabular-nums text-[#2A2421] min-w-11 text-right">
         {rightText ?? `${Math.round(clamped)}%`}
       </span>
     </div>
