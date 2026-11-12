@@ -38,8 +38,14 @@ Desktop.ini
 
 # IDE config
 .idea/
+.vscode/
 *.sublime-project
 *.sublime-workspace
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
+
+# Internal specs, tasks, and planning documentation
+SPEC*.md
+CAPABILITY_MAP.md
+tasks/
+docs/
+
+

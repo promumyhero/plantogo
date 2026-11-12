@@ -53,7 +53,6 @@ Aplikasi ini dirancang untuk kelompok perjalanan (seperti trip 4 orang keliling 
 
 ```plaintext
 plantogo/
-├── docs/                      # Ideasi dan catatan teknis
 ├── src/
 │   ├── app/                   # Next.js App Router (pages & layouts)
 │   │   ├── dashboard/         # Dashboard ringkasan trip
@@ -77,12 +76,9 @@ plantogo/
 ├── supabase/
 │   ├── migrations/            # Skema migrasi SQL & kebijakan RLS
 │   └── seed.sql               # Data awal / dummy development
-├── tasks/                     # Task tracking & roadmap
 ├── tests/
 │   ├── setup.ts               # Setup konfigurasi test runner
 │   └── unit/                  # Unit tests (split-bill, rbac, rules, auth, dll.)
-├── CAPABILITY_MAP.md          # Peta kapabilitas sistem
-├── SPEC*.md                   # Spesifikasi teknis modular
 ├── package.json
 └── tsconfig.json
 ```
@@ -152,3 +148,4 @@ Proyek ini dikembangkan mengikuti standar **Trunk-Based Development** dan **Conv
 - `chore:` Konfigurasi tooling & dependensi
 - `test:` Penambahan atau pembaruan test suite
 - `refactor:` Restrukturisasi kode tanpa mengubah fungsionalitas
+
