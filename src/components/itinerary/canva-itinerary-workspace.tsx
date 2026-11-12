@@ -602,8 +602,8 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
       <BentoCard variant="white" padding="md">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Left: Trip Selector & Dates */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
-            <div className="min-w-65 sm:max-w-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+            <div className="w-full sm:min-w-65 sm:max-w-sm">
               <CustomSelect
                 label="Rencana Perjalanan Aktif"
                 value={trip.id}
@@ -612,7 +612,7 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-5">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1 sm:pt-5">
               <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#EFECE4] px-3 py-2 text-xs font-semibold text-[#4A423D]">
                 <Calendar className="h-3.5 w-3.5 text-[#4F5D48]" />
                 {trip.start_date} – {trip.end_date} ({totalDays} Hari)
@@ -696,29 +696,29 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
         </div>
 
         {/* Summary Strip: Plan vs Actual Budget */}
-        <div className="mt-5 pt-4 border-t border-[#E5DFD3] grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-4 py-2.5">
+        <div className="mt-5 pt-4 border-t border-[#E5DFD3] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-3.5 py-2.5">
             <p className="text-[11px] font-medium text-[#7D736B]">Target Anggaran Trip</p>
-            <p className="text-base font-bold text-[#2A2421] tabular-nums">
+            <p className="text-sm sm:text-base font-bold text-[#2A2421] tabular-nums truncate">
               Rp {trip.total_budget_plan.toLocaleString('id-ID')}
             </p>
           </div>
-          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-4 py-2.5">
+          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-3.5 py-2.5">
             <p className="text-[11px] font-medium text-[#7D736B]">Total Estimasi di Tabel</p>
-            <p className="text-base font-bold text-[#8C6D53] tabular-nums">
+            <p className="text-sm sm:text-base font-bold text-[#8C6D53] tabular-nums truncate">
               Rp {totalEstimatedCost.toLocaleString('id-ID')}
             </p>
           </div>
-          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-4 py-2.5">
+          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-3.5 py-2.5">
             <p className="text-[11px] font-medium text-[#7D736B]">Realisasi Pengeluaran</p>
-            <p className="text-base font-bold text-[#4F5D48] tabular-nums">
+            <p className="text-sm sm:text-base font-bold text-[#4F5D48] tabular-nums truncate">
               Rp {totalActualSpent.toLocaleString('id-ID')}
             </p>
           </div>
-          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-4 py-2.5">
+          <div className="rounded-xl bg-[#FAF8F5] border border-[#E5DFD3] px-3.5 py-2.5">
             <p className="text-[11px] font-medium text-[#7D736B]">Sisa Anggaran</p>
             <p
-              className={`text-base font-bold tabular-nums ${
+              className={`text-sm sm:text-base font-bold tabular-nums truncate ${
                 remainingBudget < 0 ? 'text-[#C46A4E]' : 'text-[#2A2421]'
               }`}
             >
@@ -732,17 +732,17 @@ export function CanvaItineraryWorkspace({ initialTripId }: { initialTripId?: str
           TABLE SWITCHER & FILTER BAR
       ===================================================================== */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl bg-[#EFECE4] p-1 border border-[#DFD8CC]">
+        <div className="inline-flex flex-wrap rounded-xl bg-[#EFECE4] p-1 border border-[#DFD8CC] w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setActiveSection('schedule_table')}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
+            className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-lg px-3 sm:px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
               activeSection === 'schedule_table'
                 ? 'bg-white text-[#2A2421] shadow-2xs'
                 : 'text-[#6E655E] hover:text-[#2A2421]'
             }`}
           >
-            <Calendar className="h-3.5 w-3.5 text-[#4F5D48]" />
+            <Calendar className="h-3.5 w-3.5 text-[#4F5D48] shrink-0" />
             <span>Tabel Jadwal Perjalanan ({scheduledRows.length} Baris)</span>
           </button>
 

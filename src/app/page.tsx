@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { TopNavbar } from '@/components/layout/navbar';
+import { EditorialFooter } from '@/components/layout/footer';
 import { PageTransition } from '@/components/layout/page-transition';
 import { BentoCard } from '@/components/ui/bento-card';
 import { CustomSelect } from '@/components/ui/custom-select';
@@ -15,6 +16,7 @@ import {
 import {
   ArrowRight,
   CheckCircle2,
+  History,
   Lock,
   Sparkles,
   Table2,
@@ -132,20 +134,27 @@ export default function LandingPage() {
                   bagikan akses edit/lihat ke maksimal 4 rekan perjalanan seperti di Canva.
                 </p>
 
-                <div className="mt-7 flex flex-wrap items-center justify-center lg:justify-start gap-3">
+                <div className="mt-7 flex flex-wrap items-center justify-center lg:justify-start gap-2.5 sm:gap-3">
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#FAF8F5] px-6 py-3.5 text-xs sm:text-sm font-bold text-[#231E1B] shadow-md transition-all hover:bg-[#EFECE4]"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#FAF8F5] px-5 sm:px-6 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-[#231E1B] shadow-md transition-all hover:bg-[#EFECE4]"
                   >
-                    <Table2 className="h-4 w-4 text-[#4F5D48]" />
-                    <span>Buka Tabel Itinerary Sekarang</span>
+                    <Table2 className="h-4 w-4 text-[#4F5D48] shrink-0" />
+                    <span>Buka Tabel Itinerary</span>
                   </Link>
                   <Link
                     href="/trips/new"
-                    className="inline-flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 px-5 py-3.5 text-xs sm:text-sm font-semibold text-white transition-all hover:bg-white/25"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-white transition-all hover:bg-white/25"
                   >
-                    <span>Mulai dari Kuesioner</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <span>Mulai Kuesioner</span>
+                    <ArrowRight className="h-4 w-4 shrink-0" />
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-black/30 backdrop-blur-md border border-white/20 px-4 py-3 sm:py-3.5 text-xs sm:text-sm font-semibold text-[#E8D5B7] transition-all hover:bg-black/45"
+                  >
+                    <History className="h-4 w-4 shrink-0" />
+                    <span>Riwayat Trip</span>
                   </Link>
                 </div>
               </div>
@@ -460,6 +469,8 @@ export default function LandingPage() {
           </div>
         </section>
       </PageTransition>
+
+      <EditorialFooter />
     </div>
   );
 }

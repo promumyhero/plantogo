@@ -57,6 +57,7 @@ plantogo/
 │   ├── app/                   # Next.js App Router (pages & layouts)
 │   │   ├── dashboard/         # Dashboard ringkasan trip
 │   │   ├── login/             # Halaman autentikasi
+│   │   ├── profile/           # Halaman profil & pengaturan pengguna
 │   │   ├── trips/             # Halaman trip detail & wizard baru
 │   │   ├── globals.css        # Tema dan style global Tailwind v4
 │   │   └── layout.tsx         # Root layout dengan context provider

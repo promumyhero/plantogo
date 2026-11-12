@@ -413,6 +413,8 @@ interface TripStoreContextValue {
   getBundleById: (tripId: string) => CompleteTripBundle | undefined;
   getActiveMemberForTrip: (tripId: string, activeEmail: string) => TripMember | null;
   createTripFromOnboarding: (input: CreateTripInput) => string | null;
+  deleteTrip: (tripId: string, actorEmail: string) => boolean;
+  duplicateTrip: (tripId: string, actorEmail: string) => string | null;
   addOrUpdateItineraryItem: (
     tripId: string,
     actorEmail: string,
@@ -1439,6 +1441,124 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
     [bundles, getActiveMemberForTrip, persist]
   );
 
+  const deleteTrip = useCallback(
+    (tripId: string, actorEmail: string): boolean => {
+      const target = bundles.find((b) => b.trip.id === tripId);
+      if (!target) return false;
+
+      const actor = getActiveMemberForTrip(tripId, actorEmail);
+      if (actor && actor.role !== 'owner') {
+        toast.error('Akses Ditolak', {
+          description: 'Hanya Pemilik (Owner) yang dapat menghapus rencana perjalanan ini.',
+        });
+        return false;
+      }
+
+      if (bundles.length <= 1) {
+        toast.error('Tidak Dapat Menghapus Satu-Satunya Trip', {
+          description: 'Sisakan minimal 1 rencana perjalanan aktif atau buat trip baru terlebih dahulu.',
+        });
+        return false;
+      }
+
+      const remaining = bundles.filter((b) => b.trip.id !== tripId);
+      persist(remaining);
+      toast.success(`Trip "${target.trip.title}" berhasil dihapus dari riwayat.`);
+      return true;
+    },
+    [bundles, getActiveMemberForTrip, persist]
+  );
+
+  const duplicateTrip = useCallback(
+    (tripId: string, actorEmail: string): string | null => {
+      const source = bundles.find((b) => b.trip.id === tripId);
+      if (!source) return null;
+
+      const newTripId = `trip-${Date.now()}`;
+      const nowIso = new Date().toISOString();
+
+      const memberIdMap = new Map<string, string>();
+      const clonedMembers: TripMember[] = source.members.map((m, idx) => {
+        const newMemId = `mem-${newTripId}-${idx}`;
+        memberIdMap.set(m.id, newMemId);
+        return {
+          ...m,
+          id: newMemId,
+          trip_id: newTripId,
+          created_at: nowIso,
+        };
+      });
+
+      const itemIdMap = new Map<string, string>();
+      const clonedItinerary: ItineraryItem[] = source.itinerary.map((item, idx) => {
+        const newItemId = `item-${newTripId}-${idx}`;
+        itemIdMap.set(item.id, newItemId);
+        return {
+          ...item,
+          id: newItemId,
+          trip_id: newTripId,
+          created_by: memberIdMap.get(item.created_by) || clonedMembers[0]?.id || item.created_by,
+          created_at: nowIso,
+        };
+      });
+
+      const clonedExpenses: Expense[] = source.expenses.map((exp, idx) => {
+        const newExpId = `exp-${newTripId}-${idx}`;
+        return {
+          ...exp,
+          id: newExpId,
+          trip_id: newTripId,
+          itinerary_item_id: exp.itinerary_item_id
+            ? itemIdMap.get(exp.itinerary_item_id) || null
+            : null,
+          paid_by_member_id: memberIdMap.get(exp.paid_by_member_id) || exp.paid_by_member_id,
+          created_by_member_id:
+            memberIdMap.get(exp.created_by_member_id) || exp.created_by_member_id,
+          splits: exp.splits.map((s, sIdx) => ({
+            ...s,
+            id: `spl-${newExpId}-${sIdx}`,
+            expense_id: newExpId,
+            member_id: memberIdMap.get(s.member_id) || s.member_id,
+          })),
+          updated_at: nowIso,
+        };
+      });
+
+      const clonedBundle: CompleteTripBundle = {
+        trip: {
+          ...source.trip,
+          id: newTripId,
+          owner_id: clonedMembers[0]?.id || source.trip.owner_id,
+          title: `${source.trip.title} (Salinan)`,
+          created_at: nowIso,
+        },
+        members: clonedMembers,
+        itinerary: clonedItinerary,
+        expenses: clonedExpenses,
+        settlements: [],
+        auditLogs: [
+          {
+            id: `audit-${Date.now()}`,
+            trip_id: newTripId,
+            expense_id: null,
+            actor_email: normalizeEmail(actorEmail),
+            actor_name: clonedMembers[0]?.display_name || 'Owner',
+            action: 'CREATE',
+            summary: `Menduplikasi rencana perjalanan dari "${source.trip.title}"`,
+            previous_data: null,
+            new_data: { sourceTripId: tripId },
+            created_at: nowIso,
+          },
+        ],
+      };
+
+      persist([clonedBundle, ...bundles]);
+      toast.success(`Trip berhasil diduplikasi sebagai "${clonedBundle.trip.title}"`);
+      return newTripId;
+    },
+    [bundles, persist]
+  );
+
   return (
     <TripStoreContext.Provider
       value={{
@@ -1447,6 +1567,8 @@ export function TripStoreProvider({ children }: { children: React.ReactNode }) {
         getBundleById,
         getActiveMemberForTrip,
         createTripFromOnboarding,
+        deleteTrip,
+        duplicateTrip,
         addOrUpdateItineraryItem,
         deleteItineraryItem,
         bulkDeleteItineraryItems,

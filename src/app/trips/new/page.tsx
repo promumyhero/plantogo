@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TopNavbar } from '@/components/layout/navbar';
+import { EditorialFooter } from '@/components/layout/footer';
 import { PageTransition } from '@/components/layout/page-transition';
 import { BentoCard } from '@/components/ui/bento-card';
 import { CustomSelect } from '@/components/ui/custom-select';
@@ -1384,23 +1385,25 @@ export default function NewTripOnboardingPage() {
             <button
               type="button"
               onClick={handleNextStep}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#2A2421] px-6 py-3 text-xs sm:text-sm font-bold text-white hover:bg-[#3D3530] transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#2A2421] px-5 sm:px-6 py-3 text-xs sm:text-sm font-bold text-white hover:bg-[#3D3530] transition-all cursor-pointer"
             >
               <span>Lanjut ke Langkah {step + 1}</span>
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 shrink-0" />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleFinishOnboarding}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#4F5D48] px-7 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#3F4B39] transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#4F5D48] px-5 sm:px-7 py-3 text-xs sm:text-sm font-bold text-white shadow-md hover:bg-[#3F4B39] transition-all cursor-pointer"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4 shrink-0" />
               <span>Buat Tabel Itinerary & Grafik Keuangan</span>
             </button>
           )}
         </div>
       </PageTransition>
+
+      <EditorialFooter />
     </div>
   );
 }
